@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 The Android Open Source Project
+ * Copyright 2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,13 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,27 +38,101 @@ public class MainActivity extends Activity
         implements ActivityCompat.OnRequestPermissionsResultCallback {
     private static final int AUDIO_ECHO_REQUEST = 0;
 
-    TextView status_view;
-    String  nativeSampleRate;
-    String  nativeSampleBufSize;
-    boolean supportRecording;
-    Boolean isPlaying;
+    private Button   controlButton;
+    private TextView statusView;
+    private String  nativeSampleRate;
+    private String  nativeSampleBufSize;
+
+    private SeekBar delaySeekBar;
+    private TextView curDelayTV;
+    private int echoDelayProgress;
+
+    private SeekBar decaySeekBar;
+    private TextView curDecayTV;
+    private float echoDecayProgress;
+
+    private boolean supportRecording;
+    private Boolean isPlaying = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        status_view = (TextView)findViewById(R.id.statusView);
+        controlButton = (Button)findViewById((R.id.capture_control_button));
+        statusView = (TextView)findViewById(R.id.statusView);
         queryNativeAudioParameters();
+
+        delaySeekBar = (SeekBar)findViewById(R.id.delaySeekBar);
+        curDelayTV = (TextView)findViewById(R.id.curDelay);
+        echoDelayProgress = delaySeekBar.getProgress() * 1000 / delaySeekBar.getMax();
+        delaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                float curVal = (float)progress / delaySeekBar.getMax();
+                curDelayTV.setText(String.format("%s", curVal));
+                setSeekBarPromptPosition(delaySeekBar, curDelayTV);
+                if (!fromUser) return;
+
+                echoDelayProgress = progress * 1000 / delaySeekBar.getMax();
+                configureEcho(echoDelayProgress, echoDecayProgress);
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        delaySeekBar.post(new Runnable() {
+            @Override
+            public void run() {
+                setSeekBarPromptPosition(delaySeekBar, curDelayTV);
+            }
+        });
+
+        decaySeekBar = (SeekBar)findViewById(R.id.decaySeekBar);
+        curDecayTV = (TextView)findViewById(R.id.curDecay);
+        echoDecayProgress = (float)decaySeekBar.getProgress() / decaySeekBar.getMax();
+        decaySeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                float curVal = (float)progress / seekBar.getMax();
+                curDecayTV.setText(String.format("%s", curVal));
+                setSeekBarPromptPosition(decaySeekBar, curDecayTV);
+                if (!fromUser)
+                    return;
+
+                echoDecayProgress = curVal;
+                configureEcho(echoDelayProgress, echoDecayProgress);
+            }
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        decaySeekBar.post(new Runnable() {
+            @Override
+            public void run() {
+                setSeekBarPromptPosition(decaySeekBar, curDecayTV);
+            }
+        });
 
         // initialize native audio system
         updateNativeAudioUI();
+
         if (supportRecording) {
-            createSLEngine(Integer.parseInt(nativeSampleRate), Integer.parseInt(nativeSampleBufSize));
+            createSLEngine(
+                    Integer.parseInt(nativeSampleRate),
+                    Integer.parseInt(nativeSampleBufSize),
+                    echoDelayProgress,
+                    echoDecayProgress);
         }
-        isPlaying = false;
     }
+
+    private void setSeekBarPromptPosition(SeekBar seekBar, TextView label) {
+        float thumbX = (float)seekBar.getProgress()/ seekBar.getMax() *
+                              seekBar.getWidth() + seekBar.getX();
+        label.setX(thumbX - label.getWidth()/2.0f);
+    }
+
     @Override
     protected void onDestroy() {
         if (supportRecording) {
@@ -92,73 +168,78 @@ public class MainActivity extends Activity
     }
 
     private void startEcho() {
-        if(!supportRecording || isPlaying) {
+        if(!supportRecording){
             return;
         }
-        if(!createSLBufferQueueAudioPlayer()) {
-            status_view.setText("Failed to create Audio Player");
-            return;
-        }
-        if(!createAudioRecorder()) {
+        if (!isPlaying) {
+            if(!createSLBufferQueueAudioPlayer()) {
+                statusView.setText(getString(R.string.player_error_msg));
+                return;
+            }
+            if(!createAudioRecorder()) {
+                deleteSLBufferQueueAudioPlayer();
+                statusView.setText(getString(R.string.recorder_error_msg));
+                return;
+            }
+            startPlay();   // startPlay() triggers startRecording()
+            statusView.setText(getString(R.string.echoing_status_msg));
+        } else {
+            stopPlay();  // stopPlay() triggers stopRecording()
+            updateNativeAudioUI();
+            deleteAudioRecorder();
             deleteSLBufferQueueAudioPlayer();
-            status_view.setText("Failed to create Audio Recorder");
-            return;
         }
-        startPlay();   //this must include startRecording()
-        isPlaying = true;
-        status_view.setText("Engine Echoing ....");
+        isPlaying = !isPlaying;
+        controlButton.setText(getString(isPlaying ?
+                R.string.cmd_stop_echo: R.string.cmd_start_echo));
     }
-    public void startEcho(View view) {
+    public void onEchoClick(View view) {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) !=
                                                PackageManager.PERMISSION_GRANTED) {
+            statusView.setText(getString(R.string.request_permission_status_msg));
             ActivityCompat.requestPermissions(
                     this,
                     new String[] { Manifest.permission.RECORD_AUDIO },
                     AUDIO_ECHO_REQUEST);
-            status_view.setText("Requesting RECORD_AUDIO Permission...");
             return;
         }
         startEcho();
     }
 
-    public void stopEcho(View view) {
-        if(!supportRecording || !isPlaying) {
-            return;
-        }
-        stopPlay();  //this must include stopRecording()
-        updateNativeAudioUI();
-        deleteSLBufferQueueAudioPlayer();
-        deleteAudioRecorder();
-        isPlaying = false;
-    }
     public void getLowLatencyParameters(View view) {
         updateNativeAudioUI();
-        return;
     }
 
     private void queryNativeAudioParameters() {
+        supportRecording = true;
         AudioManager myAudioMgr = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        if(myAudioMgr == null) {
+            supportRecording = false;
+            return;
+        }
         nativeSampleRate  =  myAudioMgr.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
         nativeSampleBufSize =myAudioMgr.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
+
+        // hardcoded channel to mono: both sides -- C++ and Java sides
         int recBufSize = AudioRecord.getMinBufferSize(
                 Integer.parseInt(nativeSampleRate),
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT);
-        supportRecording = true;
         if (recBufSize == AudioRecord.ERROR ||
-            recBufSize == AudioRecord.ERROR_BAD_VALUE) {
+                recBufSize == AudioRecord.ERROR_BAD_VALUE) {
             supportRecording = false;
         }
+
     }
     private void updateNativeAudioUI() {
         if (!supportRecording) {
-            status_view.setText("Error: Audio recording is not supported");
+            statusView.setText(getString(R.string.mic_error_msg));
+            controlButton.setEnabled(false);
             return;
         }
 
-        status_view.setText("nativeSampleRate    = " + nativeSampleRate + "\n" +
-                "nativeSampleBufSize = " + nativeSampleBufSize + "\n");
-
+        statusView.setText(getString(R.string.fast_audio_info_msg,
+                nativeSampleRate, nativeSampleBufSize));
     }
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
@@ -174,18 +255,16 @@ public class MainActivity extends Activity
         if (grantResults.length != 1  ||
             grantResults[0] != PackageManager.PERMISSION_GRANTED) {
             /*
-             * When user denied the permission, throw a Toast to prompt that RECORD_AUDIO
-             * is necessary; on UI, we display the current status as permission was denied so
-             * user know what is going on.
-             * This application go back to the original state: it behaves as if the button
+             * When user denied permission, throw a Toast to prompt that RECORD_AUDIO
+             * is necessary; also display the status on UI
+             * Then application goes back to the original state: it behaves as if the button
              * was not clicked. The assumption is that user will re-click the "start" button
              * (to retry), or shutdown the app in normal way.
              */
-            status_view.setText("Error: Permission for RECORD_AUDIO was denied");
+            statusView.setText(getString(R.string.permission_error_msg));
             Toast.makeText(getApplicationContext(),
-                           getString(R.string.NeedRecordAudioPermission),
-                           Toast.LENGTH_SHORT)
-                 .show();
+                    getString(R.string.permission_prompt_msg),
+                    Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -194,8 +273,7 @@ public class MainActivity extends Activity
          * re-try the "start" button to perform the normal operation. This saves us the extra
          * logic in code for async processing of the button listener.
          */
-        status_view.setText("RECORD_AUDIO permission granted, touch " +
-                             getString(R.string.StartEcho) + " to begin");
+        statusView.setText(getString(R.string.permission_granted_msg,getString(R.string.cmd_start_echo)));
 
 
         // The callback runs on app's thread, so we are safe to resume the action
@@ -203,23 +281,24 @@ public class MainActivity extends Activity
     }
 
     /*
-     * Loading our Libs
+     * Loading our lib
      */
     static {
         System.loadLibrary("echo");
     }
 
     /*
-     * jni function implementations...
+     * jni function declarations
      */
-    public static native void createSLEngine(int rate, int framesPerBuf);
-    public static native void deleteSLEngine();
+    static native void createSLEngine(int rate, int framesPerBuf,
+                                      long delayInMs, float decay);
+    static native void deleteSLEngine();
+    static native boolean configureEcho(int delayInMs, float decay);
+    static native boolean createSLBufferQueueAudioPlayer();
+    static native void deleteSLBufferQueueAudioPlayer();
 
-    public static native boolean createSLBufferQueueAudioPlayer();
-    public static native void deleteSLBufferQueueAudioPlayer();
-
-    public static native boolean createAudioRecorder();
-    public static native void deleteAudioRecorder();
-    public static native void startPlay();
-    public static native void stopPlay();
+    static native boolean createAudioRecorder();
+    static native void deleteAudioRecorder();
+    static native void startPlay();
+    static native void stopPlay();
 }

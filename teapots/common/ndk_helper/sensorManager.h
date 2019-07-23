@@ -50,10 +50,15 @@ class SensorManager {
   SensorManager();
   ~SensorManager();
   void Init(android_app *state);
-  void Process(const int32_t id);
   void Suspend();
   void Resume();
 };
 
+/*
+ * AcquireASensorManagerInstance(android_app* app)
+ *    Workaround ASensorManager_getInstance() deprecation false alarm
+ *    for Android-N and before, when compiling with NDK-r15
+ */
+ASensorManager* AcquireASensorManagerInstance(android_app* app);
 }  // namespace ndkHelper
 #endif /* SENSORMANAGER_H_ */

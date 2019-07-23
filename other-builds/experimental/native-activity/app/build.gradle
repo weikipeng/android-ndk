@@ -5,21 +5,23 @@ def REMOTE_PROJ_ROOT = '../../../../' + rootProject.getName() + '/' +
 
 model {
     android {
-        compileSdkVersion = 23
-        buildToolsVersion = '23.0.2'
+        compileSdkVersion = 25
+        buildToolsVersion = '25.0.3'
 
         defaultConfig {
             applicationId = 'com.example.native_activity'
-            minSdkVersion.apiLevel    = 9
+            minSdkVersion.apiLevel    = 14
             targetSdkVersion.apiLevel = 23
         }
         ndk {
+            abiFilters.addAll(['armeabi-v7a', 'arm64-v8a', 'x86', 'x86-64'])
             platformVersion = 21
             moduleName ='native-activity'
             toolchain = 'clang'
-            stl = 'gnustl_static'
-            cppFlags.add('-std=c++11')
+            stl = 'c++_static'
+            cppFlags.addAll(['-std=c++11'])
             ldLibs.addAll(['log', 'android', 'EGL', 'GLESv1_CM'])
+            ldFlags.addAll(["-uANativeActivity_onCreate"])
         }
         sources {
             main {
@@ -48,5 +50,5 @@ model {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.android.support:appcompat-v7:23.4.0'
-    compile 'com.android.support.constraint:constraint-layout:1.0.0-alpha7'
+    compile 'com.android.support.constraint:constraint-layout:1.0.0'
 }

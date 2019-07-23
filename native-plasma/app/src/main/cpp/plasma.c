@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 #define  LOG_TAG    "libplasma"
@@ -459,9 +460,6 @@ void android_main(struct android_app* state) {
     static int init;
 
     struct engine engine;
-
-    // Make sure glue isn't stripped.
-    app_dummy();
 
     memset(&engine, 0, sizeof(engine));
     state->userData = &engine;

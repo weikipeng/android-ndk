@@ -20,10 +20,10 @@
 #include <android/log.h>
 #include <gmath.h>
 #include <gperf.h>
-
+#include <string>
 
 #define LOGI(...) \
-  ((void)__android_log_print(ANDROID_LOG_INFO, "hell-libs::", __VA_ARGS__))
+  ((void)__android_log_print(ANDROID_LOG_INFO, "hello-libs::", __VA_ARGS__))
 
 /* This is a trivial JNI example where we use a native method
  * to return a new VM String. See the corresponding Java source

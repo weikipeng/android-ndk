@@ -15,9 +15,6 @@
  */
 
 // The original code is from https://github.com/netguy204/gambit-game-lib
-
-#include <stdio.h>
-
 #include "android_fopen.h"
 #include <errno.h>
 #include <android/asset_manager.h>
@@ -40,7 +37,7 @@ static int android_close(void* cookie) {
 }
 
 // must be established by someone else...
-AAssetManager* android_asset_manager = NULL;
+static AAssetManager* android_asset_manager = NULL;
 void android_fopen_set_asset_manager(AAssetManager* manager) {
     android_asset_manager = manager;
 }

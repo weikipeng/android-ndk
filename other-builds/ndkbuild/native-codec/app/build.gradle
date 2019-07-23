@@ -5,16 +5,12 @@ def REMOTE_SRC_ROOT = '../../../../' + rootProject.getName() + '/' +
         project.getName() + '/src/main'
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion '23.0.2'
+    compileSdkVersion 28
 
     defaultConfig {
         applicationId 'com.example.nativecodec'
         minSdkVersion 21
-        targetSdkVersion 22
-        ndk {
-            abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a'
-        }
+        targetSdkVersion 28
     }
     sourceSets {
         main {

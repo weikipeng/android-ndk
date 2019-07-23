@@ -1,20 +1,15 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion '23.0.2'
+    compileSdkVersion 28
 
     defaultConfig {
         applicationId 'com.example.nativecodec'
         minSdkVersion 21
-        targetSdkVersion 22
-        ndk {
-            abiFilters 'x86', 'x86_64', 'armeabi', 'armeabi-v7a', 'arm64-v8a'
-        }
+        targetSdkVersion 28
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_PLATFORM=android-21',
-                          '-DANDROID_TOOLCHAIN=clang', '-DANDROID_STL=gnustl_static'
+                arguments '-DANDROID_STL=c++_static'
             }
         }
     }
@@ -27,6 +22,7 @@ android {
     }
     externalNativeBuild {
         cmake {
+            version '3.10.2'
             path 'src/main/cpp/CMakeLists.txt'
         }
     }

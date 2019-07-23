@@ -18,6 +18,8 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include <cpu-features.h>
 #include "helloneon-intrinsics.h"
 
@@ -129,7 +131,7 @@ Java_com_example_helloneon_HelloNeon_stringFromJNI( JNIEnv* env,
         goto EXIT;
     }
 
-    /* HAVE_NEON is defined in Android.mk ! */
+    /* HAVE_NEON is defined in CMakeLists.txt ! */
 #ifdef HAVE_NEON
     if (((features & ANDROID_CPU_ARM_FEATURE_NEON) == 0) &&
         ((features & ANDROID_CPU_X86_FEATURE_SSSE3) == 0))
@@ -167,5 +169,6 @@ Java_com_example_helloneon_HelloNeon_stringFromJNI( JNIEnv* env,
     strlcat(buffer, "Program not compiled with ARMv7 support !\n", sizeof buffer);
 #endif /* !HAVE_NEON */
 EXIT:
+    D("%s",  buffer);
     return (*env)->NewStringUTF(env, buffer);
 }

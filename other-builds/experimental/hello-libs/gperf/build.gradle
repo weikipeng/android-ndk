@@ -10,14 +10,14 @@ model {
         buildToolsVersion = '24.0.0'
 
         defaultConfig {
-            minSdkVersion.apiLevel = 13
+            minSdkVersion.apiLevel = 14
             targetSdkVersion.apiLevel = 24
             versionCode = 1
             versionName = '1.0'
         }
         ndk {
             moduleName = 'gperf'
-            abiFilters.addAll(['armeabi', 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64', 'mips', 'mips64']) //this is default
+            abiFilters.addAll(['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64']) //this is default
             ldLibs.addAll(['android', 'log'])
         }
         sources {

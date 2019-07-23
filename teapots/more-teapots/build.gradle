@@ -2,20 +2,19 @@ apply plugin: 'com.android.application'
 
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion '25.0.2'
+    compileSdkVersion 28
 
     defaultConfig {
         applicationId  'com.sample.moreteapots'
-        minSdkVersion   17
-        targetSdkVersion 25
+        minSdkVersion   21
+        targetSdkVersion 28
         ndk {
-            abiFilters 'armeabi', 'armeabi-v7a', 'arm64-v8a','x86'
+            abiFilters 'armeabi-v7a', 'arm64-v8a','x86', 'x86_64'
         }
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_PLATFORM=android-22',
-                    '-DANDROID_TOOLCHAIN=gcc', '-DANDROID_STL=c++_static'
+                arguments '-DANDROID_TOOLCHAIN=clang',
+                          '-DANDROID_STL=c++_static'
             }
         }
     }
@@ -28,12 +27,13 @@ android {
     }
     externalNativeBuild {
         cmake {
+            version '3.10.2'
             path 'src/main/cpp/CMakeLists.txt'
         }
     }
 }
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-    compile 'com.android.support:appcompat-v7:25.1.0'
-    compile 'com.android.support.constraint:constraint-layout:1.0.0-beta4'
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.0.2'
+    implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
 }

@@ -15,33 +15,38 @@
 #
 
 cmake_minimum_required(VERSION 3.4.1)
+project(MoreTeapotsNativeActivity LANGUAGES C CXX)
 
-# build native_app_glue as a static lib
-add_library(app-glue STATIC
-            ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -Wall -fno-exceptions -fno-rtti")
+# set up common compile options
+set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -Wall -Werror -fno-exceptions -fno-rtti")
 
 # build the ndk-helper library
-set(ndk_helper_dir ../../../../common/ndk_helper)
-add_subdirectory(${ndk_helper_dir} ndk_helper)
+get_filename_component(commonDir ${CMAKE_CURRENT_SOURCE_DIR}/../../../../common ABSOLUTE)
+get_filename_component(ndkHelperSrc ${commonDir}/ndk_helper ABSOLUTE)
+add_subdirectory(${ndkHelperSrc}
+        ${commonDir}/ndkHelperBin/${CMAKE_BUILD_TYPE}/${ANDROID_ABI})
+
 
 # now build app's shared lib
-add_library(MoreTeapotsNativeActivity SHARED
-            MoreTeapotsNativeActivity.cpp
-            MoreTeapotsRenderer.cpp)
+add_library(${PROJECT_NAME}
+  SHARED
+    MoreTeapotsNativeActivity.cpp
+    MoreTeapotsRenderer.cpp
+)
+set_target_properties(${PROJECT_NAME}
+  PROPERTIES
+    CXX_STANDARD 11
+    CXX_STANDARD_REQUIRED YES
+    CXX_EXTENSIONS NO
+)
 
-target_include_directories(MoreTeapotsNativeActivity PRIVATE
-                           ${ANDROID_NDK}/sources/android/cpufeatures
-                           ${ANDROID_NDK}/sources/android/native_app_glue
-                           ${ndk_helper_dir})
+# Export ANativeActivity_onCreate(),
+# Refer to: https://github.com/android-ndk/ndk/issues/381.
+set_target_properties(${PROJECT_NAME}
+  PROPERTIES  LINK_FLAGS "-u ANativeActivity_onCreate")
 
 # add lib dependencies
-target_link_libraries(MoreTeapotsNativeActivity
-                      android
-                      app-glue
-                      atomic
-                      EGL
-                      GLESv2
-                      log
-                      ndk-helper)
+target_link_libraries(${PROJECT_NAME}
+  PRIVATE
+    NdkHelper
+)

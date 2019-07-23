@@ -81,6 +81,7 @@ static char dataCache[BUFFER_SIZE * NB_BUFFERS];
 
 // handle of the file to play
 static FILE *file;
+static jobject android_java_asset_manager = NULL;
 
 // has the app reached the end of the file
 static jboolean reachedEof = JNI_FALSE;
@@ -162,7 +163,6 @@ static XAresult AndroidBufferQueueCallback(
         goto exit;
     }
 
-    size_t nbRead;
     // note we do call fread from multiple threads, but never concurrently
     size_t bytesRead;
     bytesRead = fread(pBufferData, 1, BUFFER_SIZE, file);
@@ -333,7 +333,8 @@ jboolean Java_com_example_nativemedia_NativeMedia_createStreamingMediaPlayer(JNI
 {
     XAresult res;
 
-    android_fopen_set_asset_manager(AAssetManager_fromJava(env, assetMgr));
+    android_java_asset_manager = (*env)->NewGlobalRef(env, assetMgr);
+    android_fopen_set_asset_manager(AAssetManager_fromJava(env, android_java_asset_manager));
     // convert Java string to UTF-8
     const char *utf8 = (*env)->GetStringUTFChars(env, filename, NULL);
     assert(NULL != utf8);
@@ -487,6 +488,10 @@ void Java_com_example_nativemedia_NativeMedia_shutdown(JNIEnv* env, jclass clazz
         file = NULL;
     }
 
+    if (android_java_asset_manager) {
+        (*env)->DeleteGlobalRef(env, android_java_asset_manager);
+        android_java_asset_manager = NULL;
+    }
     // make sure we don't leak native windows
     if (theNativeWindow != NULL) {
         ANativeWindow_release(theNativeWindow);
@@ -507,6 +512,18 @@ void Java_com_example_nativemedia_NativeMedia_setSurface(JNIEnv *env, jclass cla
 void Java_com_example_nativemedia_NativeMedia_rewindStreamingMediaPlayer(JNIEnv *env, jclass clazz)
 {
     XAresult res;
+    XAuint32  state;
+
+    if (!playerPlayItf) {
+        return;
+    }
+    res = (*playerPlayItf)->GetPlayState(playerPlayItf, &state);
+    assert(XA_RESULT_SUCCESS == res);
+
+    if(state == XA_PLAYSTATE_PAUSED || state == XA_PLAYSTATE_STOPPED) {
+        discontinuity = JNI_TRUE;
+        return;
+    }
 
     // make sure the streaming media player was created
     if (NULL != playerBQItf && NULL != file) {

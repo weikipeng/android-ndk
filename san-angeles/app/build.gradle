@@ -6,21 +6,14 @@ import com.android.build.OutputFile
 ext.versionCodes = ['armeabi-v7a':1, 'arm64-v8a':2, 'mips':3, 'x86':4]
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion '23.0.2'
+    compileSdkVersion 28
 
     defaultConfig {
         applicationId 'com.example.SanAngeles'
-        minSdkVersion 4
-        targetSdkVersion 23
+        minSdkVersion 14
+        targetSdkVersion 28
         versionCode  1
         versionName  "1.0"
-        externalNativeBuild {
-            cmake {
-                arguments '-DANDROID_PLATFORM=android-9',
-                          '-DANDROID_TOOLCHAIN=gcc'
-            }
-        }
     }
     buildTypes {
         release {
@@ -31,6 +24,7 @@ android {
     }
     externalNativeBuild {
         cmake {
+            version '3.10.2'
             path 'src/main/cpp/CMakeLists.txt'
         }
     }
@@ -38,7 +32,7 @@ android {
         abi {
             enable true
             reset()
-            include 'armeabi-v7a', 'arm64-v8a','mips', 'x86'
+            include 'armeabi-v7a', 'arm64-v8a', 'x86'
             universalApk false
         }
     }
